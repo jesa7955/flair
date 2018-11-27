@@ -145,6 +145,7 @@ class LanguageModel(nn.Module):
         return model
 
     def save(self, file: Path):
+        self.eval()
         model_state = {
             'state_dict': self.state_dict(),
             'dictionary': self.dictionary,

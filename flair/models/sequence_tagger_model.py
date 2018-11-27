@@ -148,6 +148,7 @@ class SequenceTagger(flair.nn.Model):
             self.cuda()
 
     def save(self, model_file: Path):
+        self.eval()
         model_state = {
             'state_dict': self.state_dict(),
             'embeddings': self.embeddings,
