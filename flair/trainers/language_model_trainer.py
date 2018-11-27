@@ -169,7 +169,8 @@ class LanguageModelTrainer:
               anneal_factor: float = 0.25,
               patience: int = 10,
               clip=0.25,
-              max_epochs: int = 1000):
+              max_epochs: int = 1000,
+              optimizer: str = 'sgd'):
 
         number_of_splits: int = len(self.corpus.train_files)
 
@@ -186,7 +187,10 @@ class LanguageModelTrainer:
 
             epoch = 0
             best_val_loss = self.model.best_score if self.model.best_score is not None else 100000000
-            optimizer = torch.optim.SGD(self.model.parameters(), lr=learning_rate)
+            if optimizer.lower() == 'sgd':
+                optimizer = torch.optim.SGD(self.model.parameters(), lr=learning_rate)
+            elif optimizer.lower() == 'adam':
+                optimizer = torch.optim.Adam(self.model.parameters(), lr=learning_rate)
             scheduler: ReduceLROnPlateau = ReduceLROnPlateau(optimizer, verbose=True, factor=anneal_factor,
                                                              patience=patience)
 
