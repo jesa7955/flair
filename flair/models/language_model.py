@@ -159,6 +159,8 @@ class LanguageModel(nn.Module):
         torch.save(model_state, str(file), pickle_protocol=4)
 
     def generate_text(self, number_of_characters=1000) -> str:
+        self.eval()
+
         with torch.no_grad():
             characters = []
 

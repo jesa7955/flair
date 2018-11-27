@@ -123,6 +123,8 @@ class TextClassifier(flair.nn.Model):
         :param mini_batch_size: mini batch size to use
         :return: the list of sentences containing the labels
         """
+        self.eval()
+
         with torch.no_grad():
             if type(sentences) is Sentence:
                 sentences = [sentences]

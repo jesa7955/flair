@@ -163,7 +163,6 @@ class SequenceTagger(flair.nn.Model):
 
         torch.save(model_state, str(model_file), pickle_protocol=4)
 
-
     @classmethod
     def load_from_file(cls, model_file: Path):
         # suppress torch warnings:
@@ -207,6 +206,8 @@ class SequenceTagger(flair.nn.Model):
             return tags, loss
 
     def predict(self, sentences: Union[List[Sentence], Sentence], mini_batch_size=32) -> List[Sentence]:
+        self.eval()
+
         with torch.no_grad():
             if type(sentences) is Sentence:
                 sentences = [sentences]

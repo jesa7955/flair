@@ -82,6 +82,7 @@ class ModelTrainer:
 
         self.model.load_state_dict(model_state)
         self.model.to(model_device)
+        self.model.eval()
 
         log_line()
         log.info(f'learning rate finder finished - plot {learning_rate_tsv}')
@@ -348,6 +349,7 @@ class ModelTrainer:
     def evaluate(model: flair.nn.Model, data_set: List[Sentence], mini_batch_size=32, embeddings_in_memory=True,
                  out_path: Path = None) -> (
             dict, float):
+        model.eval()
         if isinstance(model, TextClassifier):
             return ModelTrainer._evaluate_text_classifier(model, data_set, mini_batch_size, embeddings_in_memory)
         elif isinstance(model, SequenceTagger):
