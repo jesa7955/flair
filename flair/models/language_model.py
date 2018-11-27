@@ -17,7 +17,8 @@ class LanguageModel(nn.Module):
                  embedding_size: int = 100,
                  nout=None,
                  dropout=0.5,
-                 best_score=None):
+                 best_score=None,
+                 bidirectional: bool = False):
 
         super(LanguageModel, self).__init__()
 
@@ -32,13 +33,17 @@ class LanguageModel(nn.Module):
         self.drop = nn.Dropout(dropout)
         self.encoder = nn.Embedding(len(dictionary), embedding_size)
 
+        self.bidirectional = bidirectional
+
         if nlayers == 1:
-            self.rnn = nn.LSTM(embedding_size, hidden_size, nlayers)
+            self.rnn = nn.LSTM(embedding_size, hidden_size, nlayers, bidirectional=bidirectional)
         else:
-            self.rnn = nn.LSTM(embedding_size, hidden_size, nlayers, dropout=dropout)
+            self.rnn = nn.LSTM(embedding_size, hidden_size, nlayers, dropout=dropout, bidirectional=bidirectional)
 
         self.hidden = None
 
+        if bidirectional:
+            hidden_size *= 2
         self.nout = nout
         if nout is not None:
             self.proj = nn.Linear(hidden_size, nout)
@@ -84,8 +89,12 @@ class LanguageModel(nn.Module):
 
     def init_hidden(self, bsz):
         weight = next(self.parameters()).data
-        return (Variable(weight.new(self.nlayers, bsz, self.hidden_size).zero_()),
-                Variable(weight.new(self.nlayers, bsz, self.hidden_size).zero_()))
+        if self.bidirectional:
+            return (Variable(weight.new(self.nlayers*2, bsz, self.hidden_size).zero_()),
+                    Variable(weight.new(self.nlayers*2, bsz, self.hidden_size).zero_()))
+        else:
+            return (Variable(weight.new(self.nlayers, bsz, self.hidden_size).zero_()),
+                    Variable(weight.new(self.nlayers, bsz, self.hidden_size).zero_()))
 
     def get_representation(self, strings: List[str], detach_from_lm=True):
 
@@ -135,7 +144,8 @@ class LanguageModel(nn.Module):
                                              state['embedding_size'],
                                              state['nout'],
                                              state['dropout'],
-                                             best_score)
+                                             best_score,
+                                             state['bidirectional'])
         model.load_state_dict(state['state_dict'])
         model.eval()
         if torch.cuda.is_available():
@@ -152,7 +162,8 @@ class LanguageModel(nn.Module):
             'embedding_size': self.embedding_size,
             'nout': self.nout,
             'dropout': self.dropout,
-            'best_score': self.best_score
+            'best_score': self.best_score,
+            'bidirectional': self.bidirectional
         }
         torch.save(model_state, file, pickle_protocol=4)
 
