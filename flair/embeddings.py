@@ -6,6 +6,7 @@ from typing import List, Union, Dict
 import gensim
 import numpy as np
 import torch
+import torch.nn as nn
 from deprecated import deprecated
 
 from .nn import LockedDropout, WordDropout
@@ -127,6 +128,46 @@ class StackedEmbeddings(TokenEmbeddings):
 
         for embedding in self.embeddings:
             embedding._add_embeddings_internal(sentences)
+
+        return sentences
+
+
+class PreTrainedEmbeddings(TokenEmbeddings):
+    """Wrape nn.Embedding pre-trained with other tasks"""
+
+    def __init__(self, embedding: nn.Embedding, name: str, dictionary: Dictionary):
+        self.name = f'jointly_pre_trained{name}'
+        self.embedding = embedding
+        self.dictionary = dictionary
+        self.__embedding_length: int = embedding.embedding_dim
+        super().__init__()
+
+    @property
+    def embedding_length(self) -> int:
+        return self.__embedding_length
+
+    def _add_embeddings_internal(self, sentences: List[Sentence]) -> List[Sentence]:
+        sequences_as_char_indices: List[List[int]] = []
+        strings: List[str] = []
+        tokens_list = [sentence.tokens for sentence in sentences]
+        for tokens in tokens_list:
+            strings.append(''.join([token.text for token in tokens]))
+        max_length_in_batch = max([len(string) for string in strings])
+        for string in strings:
+            pad_by = max_length_in_batch - len(string)
+            #padded = '{}{}'.format(string, pad_by * ' ')
+            padded = f"{string}{pad_by * ' '}"
+            char_indices = [self.dictionary.get_idx_for_item(char) for char in padded]
+            sequences_as_char_indices.append(char_indices)
+        batch = Variable(torch.LongTensor(sequences_as_char_indices))
+        if torch.cuda.is_available():
+            batch = batch.cuda()
+        encoded = self.embeddings(batch)
+        # TODO Dropout?
+        embed = encoded
+        for sentence, sentence_encoded in zip(sentences, encoded):
+            for token, token_embedding in zip(sentence.tokens, sentence_encoded):
+                token.set_embedding(self.name, token_embedding)
 
         return sentences
 
