@@ -74,6 +74,7 @@ class SequenceTagger(torch.nn.Module):
                  use_dropout: float = 0.0,
                  use_word_dropout: float = 0.05,
                  use_locked_dropout: float = 0.5,
+                 fine_tuning_model: torch.nn.Module = None,
                  ):
 
         super(SequenceTagger, self).__init__()
@@ -100,6 +101,11 @@ class SequenceTagger(torch.nn.Module):
         self.use_dropout: float = use_dropout
         self.use_word_dropout: float = use_word_dropout
         self.use_locked_dropout: float = use_locked_dropout
+
+        # fine tuning
+        self.fine_tuning = False
+        if fine_tuning_model is not None:
+            self.fine_tuning = True
 
         if use_dropout > 0.0:
             self.dropout = torch.nn.Dropout(use_dropout)
@@ -130,6 +136,8 @@ class SequenceTagger(torch.nn.Module):
                                                             num_layers=self.nlayers,
                                                             dropout=0.5,
                                                             bidirectional=True)
+        if self.fine_tuning:
+            self.rnn = fine_tuning_model
 
         # final linear map to tag space
         if self.use_rnn:
