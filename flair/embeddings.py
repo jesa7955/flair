@@ -136,12 +136,20 @@ class StackedEmbeddings(TokenEmbeddings):
 class PreTrainedEmbeddings(TokenEmbeddings):
     """Wrape nn.Embedding pre-trained with other tasks"""
 
-    def __init__(self, embedding: nn.Embedding, name: str, dictionary: Dictionary):
+    def __init__(self,
+                 embedding: nn.Embedding,
+                 name: str,
+                 dictionary: Dictionary,
+                 dropout: float = 0.02):
+        super().__init__()
+        for param in embedding.parameters():
+            param.requires_grad = False
         self.name = f'jointly_pre_trained{name}'
         self.embedding = embedding
+        self.dropout = nn.Dropout(dropout)
         self.dictionary = dictionary
         self.__embedding_length: int = embedding.embedding_dim
-        super().__init__()
+        self.static_embeddings = True
 
     @property
     def embedding_length(self) -> int:
@@ -149,25 +157,20 @@ class PreTrainedEmbeddings(TokenEmbeddings):
 
     def _add_embeddings_internal(self, sentences: List[Sentence]) -> List[Sentence]:
         sequences_as_char_indices: List[List[int]] = []
-        strings: List[str] = []
-        tokens_list = [sentence.tokens for sentence in sentences]
-        for tokens in tokens_list:
-            strings.append(''.join([token.text for token in tokens]))
-        max_length_in_batch = max([len(string) for string in strings])
-        for string in strings:
-            pad_by = max_length_in_batch - len(string)
-            #padded = '{}{}'.format(string, pad_by * ' ')
-            padded = f"{string}{pad_by * ' '}"
+        text_sentences = [sentence.to_tokenized_string() for sentence in sentences]
+        max_length_in_batch = max([len(text_sentence) for text_sentence in text_sentences])
+        for text_sentence in text_sentences:
+            pad_by = max_length_in_batch - len(text_sentence)
+            padded = f"{text_sentence}{pad_by * ' '}"
             char_indices = [self.dictionary.get_idx_for_item(char) for char in padded]
             sequences_as_char_indices.append(char_indices)
         batch = Variable(torch.LongTensor(sequences_as_char_indices))
         if torch.cuda.is_available():
             batch = batch.cuda()
-        encoded = self.embeddings(batch)
-        # TODO Dropout?
-        embed = encoded
-        for sentence, sentence_encoded in zip(sentences, encoded):
-            for token, token_embedding in zip(sentence.tokens, sentence_encoded):
+        encoded = self.embedding(batch)
+        embed = self.dropout(encoded)
+        for sentence, sentence_embed in zip(sentences, embed):
+            for token, token_embedding in zip(sentence.tokens, sentence_embed):
                 token.set_embedding(self.name, token_embedding)
 
         return sentences
