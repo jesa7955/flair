@@ -32,7 +32,7 @@ class SequenceTaggerTrainer:
               checkpoint: bool = False,
               save_final_model: bool = True,
               anneal_with_restarts: bool = False,
-              optimizer: str = 'sgd',
+              optimizer = 'sgd',
               ):
 
         evaluation_method = 'F1'
@@ -46,10 +46,13 @@ class SequenceTaggerTrainer:
 
         weight_extractor = WeightExtractor(base_path)
 
-        if optimizer.lower() == 'sgd':
-            optimizer = torch.optim.SGD(self.model.parameters(), lr=learning_rate)
-        elif optimizer.lower() == 'adam':
-            optimizer = torch.optim.Adam(self.model.parameters(), lr=learning_rate)
+        if type(optimizer) == str:
+            if optimizer.lower() == 'sgd':
+                optimizer = torch.optim.SGD(self.model.parameters(), lr=learning_rate)
+            elif optimizer.lower() == 'adam':
+                optimizer = torch.optim.Adam(self.model.parameters(), lr=learning_rate, betas=(0.7, 0.999))
+        else:
+            optimizer = optimizer
 
         # annealing scheduler
         anneal_mode = 'min' if train_with_dev else 'max'
